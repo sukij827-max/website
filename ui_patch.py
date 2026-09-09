@@ -1,5 +1,5 @@
 from decimal import Decimal
-from flask import request, url_for
+from flask import request, url_for, session
 from app import app, db, Withdrawal, admin_required, current_user, page
 
 def _remove_rule(rule_path, endpoint):
@@ -51,6 +51,11 @@ def profile():
     <div class="card" style="margin-top:16px"><h3>Riwayat Transaksi</h3><div style="display:grid;gap:8px">{''.join(f'<div class="status-box"><b>Rp {Decimal(t.amount):,.0f}</b> · {t.kind}<div class="muted small">{t.created_at}</div><div class="small">{t.note}</div></div>' for t in tx) or '<div class="muted">Belum ada transaksi.</div>'}</div></div>'''
     return page(body,'Profil Saya')
 
+@app.route('/logout', endpoint='logout')
+def logout():
+    session.clear()
+    return __import__('flask').redirect(url_for('login'))
+
 @app.after_request
 def add_ui_navigation(response):
     if response.content_type and 'text/html' in response.content_type and response.status_code == 200:
@@ -58,16 +63,16 @@ def add_ui_navigation(response):
         u = current_user()
         if u and 'ui-bottom-nav' not in html:
             if u.username == __import__('os').getenv('ADMIN_USERNAME','admin'):
-                links = [('/dashboard','⌂','Dashboard'),('/submit','＋','Ajukan'),('/admin/withdrawals','↳','Withdraw'),('/admin/users','♙','User'),('/admin','▦','Admin')]
+                links = [('/dashboard','⌂','Dashboard'),('/submit','＋','Ajukan'),('/admin/withdrawals','↳','Withdraw'),('/admin/users','♙','User'),('/admin','▦','Admin'),('/logout','↪','Keluar')]
             else:
-                links = [('/dashboard','⌂','Dashboard'),('/submit','＋','Ajukan'),('/withdraw','↳','Withdraw'),('/profile','♙','User'),('/rules','☰','Aturan')]
+                links = [('/dashboard','⌂','Dashboard'),('/submit','＋','Ajukan'),('/withdraw','↳','Withdraw'),('/profile','♙','User'),('/rules','☰','Aturan'),('/logout','↪','Keluar')]
             nav=''.join(f'<a class="bottom-item {"active" if request.path==p else ""}" href="{p}"><span class="bottom-icon">{ic}</span><span>{label}</span></a>' for p,ic,label in links)
             extra='''<style>
             body{padding-bottom:82px}.navlinks{display:none!important}
             .ui-bottom-nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:100;width:min(680px,calc(100% - 24px));background:rgba(17,26,42,.96);backdrop-filter:blur(14px);border:1px solid #34445f;border-radius:20px;padding:8px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;box-shadow:0 12px 35px #0003}
             .bottom-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border-radius:14px;color:#aab5c7;font-size:11px;font-weight:700;transition:.15s}.bottom-item:hover,.bottom-item.active{background:#26344b;color:#fff}.bottom-icon{font-size:20px;line-height:20px}
             .review-list{display:grid;gap:12px}.review-card{background:#172236;border:1px solid #293750;border-radius:18px;padding:16px}.review-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.review-grid>div{background:#111a2a;border-radius:12px;padding:11px;min-width:0}.label{display:block;color:#8f9bb0;font-size:11px;text-transform:uppercase;margin-bottom:4px}.value{display:block;overflow-wrap:anywhere}.amount{font-size:18px}.user-chip{display:inline-block;margin-right:7px;color:#fff;font-weight:800}.compact-actions{margin-top:14px;align-items:stretch}.compact-actions form{margin:0}.compact-actions .btn{height:44px}.reject-form{display:flex;gap:7px;flex:1;min-width:220px}.reject-form .reason{margin:0;flex:1;min-width:0}.status-line{margin-top:12px;color:#aab5c7}
-            @media(max-width:650px){.review-grid{grid-template-columns:1fr}.reject-form{min-width:100%}.compact-actions{display:grid}.compact-actions>form:first-child{width:100%}.compact-actions>form:first-child .btn{width:100%}.reject-form .btn{white-space:nowrap}.ui-bottom-nav{bottom:8px;border-radius:18px}.bottom-item{min-height:50px}}
+            @media(max-width:650px){.review-grid{grid-template-columns:1fr}.reject-form{min-width:100%}.compact-actions{display:grid}.compact-actions>form:first-child{width:100%}.compact-actions>form:first-child .btn{width:100%}.reject-form .btn{white-space:nowrap}.ui-bottom-nav{bottom:8px;border-radius:18px}.bottom-item{min-height:50px;font-size:10px}.bottom-icon{font-size:18px}}
             </style><nav id="ui-bottom-nav" class="ui-bottom-nav">'''+nav+'''</nav>'''
             html = html.replace('</body>', extra+'</body>')
             response.set_data(html)
