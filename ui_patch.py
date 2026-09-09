@@ -1,8 +1,7 @@
 from decimal import Decimal
-from flask import request, url_for, flash
+from flask import request, url_for
 from app import app, db, Withdrawal, admin_required, current_user, page
 
-# Compact admin withdrawal cards: no wide table / horizontal scrolling.
 def _remove_rule(rule_path, endpoint):
     for rule in list(app.url_map.iter_rules()):
         if rule.rule == rule_path and rule.endpoint == endpoint:
@@ -10,6 +9,7 @@ def _remove_rule(rule_path, endpoint):
             except ValueError: pass
             try: app.url_map._rules_by_endpoint[endpoint].remove(rule)
             except (KeyError, ValueError): pass
+    app.view_functions.pop(endpoint, None)
 
 _remove_rule('/admin/withdrawals', 'admin_withdrawals')
 
@@ -48,10 +48,9 @@ def profile():
     tx = sorted(u.transactions, key=lambda x: x.id, reverse=True)[:20]
     body=f'''<div class="top"><div><div class="muted">USER</div><h1>Profil Saya</h1></div><a class="btn secondary" href="/dashboard">← Dashboard</a></div>
     <div class="grid"><div class="card"><div class="muted small">USERNAME</div><h2>@{u.username}</h2><div class="muted">User ID: <b>{u.id}</b></div></div><div class="card"><div class="muted small">SALDO</div><div class="big">Rp {Decimal(u.balance):,.0f}</div><a class="btn" href="/withdraw" style="margin-top:12px">Withdraw</a></div></div>
-    <div class="card" style="margin-top:16px"><h3>Riwayat Transaksi</h3><table class="table"><tr><th>Tanggal</th><th>Nominal</th><th>Jenis</th><th>Catatan</th></tr>{''.join(f'<tr><td>{t.created_at}</td><td>Rp {Decimal(t.amount):,.0f}</td><td>{t.kind}</td><td>{t.note}</td></tr>' for t in tx) or '<tr><td colspan="4" class="muted">Belum ada transaksi.</td></tr>'}</table></div>'''
+    <div class="card" style="margin-top:16px"><h3>Riwayat Transaksi</h3><div style="display:grid;gap:8px">{''.join(f'<div class="status-box"><b>Rp {Decimal(t.amount):,.0f}</b> · {t.kind}<div class="muted small">{t.created_at}</div><div class="small">{t.note}</div></div>' for t in tx) or '<div class="muted">Belum ada transaksi.</div>'}</div></div>'''
     return page(body,'Profil Saya')
 
-# Bottom navigation: always visible on mobile and desktop, with real buttons instead of plain text.
 @app.after_request
 def add_ui_navigation(response):
     if response.content_type and 'text/html' in response.content_type and response.status_code == 200:
