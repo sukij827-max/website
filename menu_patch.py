@@ -77,8 +77,7 @@ def apply_menu_settings(response):
             marker = '<a class="btn secondary" href="/admin/settings">'
             html = html.replace(marker, marker + f'<a class="btn secondary" href="/admin/menu-settings">⚙ {menu_text("menu_admin")}</a>')
 
-        if current_user() and '/dashboard' in html and 'dashboard-referral-card' not in html and 'Dashboard' in html:
-            card = f'''<div id="dashboard-referral-card" class="card" style="margin-top:16px"><div class="top"><div><div class="muted">PROGRAM REFERRAL</div><h3>{menu_text('menu_referral')}</h3><p class="muted">Undang teman melalui link referral kamu. Setiap <b>1 email teman yang diterima admin</b> = <b>Rp 1.000</b>. Jadi 10 email diterima = <b>Rp 10.000</b>.</p></div><a class="btn" href="/referral">{menu_text('menu_referral')}</a></div></div>'''
-            html = html.replace('<div class="card" style="margin-top:16px"><h3>Riwayat Pengajuan</h3>', card + '<div class="card" style="margin-top:16px"><h3>Riwayat Pengajuan</h3>')
+        # Referral card is already rendered by feature_patch.py dashboard.
+        # Do not inject another card here, otherwise the dashboard shows it twice.
         response.set_data(html)
     return response
