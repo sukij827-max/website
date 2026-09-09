@@ -73,11 +73,19 @@ def apply_menu_settings(response):
         for old, new in replacements.items():
             html = html.replace(old, new)
 
+        # Place the editable-menu shortcut directly AFTER the normal Settings button.
+        # This keeps the admin action buttons in the intended order and uses the
+        # actual menu-settings label instead of the Admin label.
         if current_user() and current_user().username == __import__('os').getenv('ADMIN_USERNAME', 'admin') and '/admin/menu-settings' not in html:
             marker = '<a class="btn secondary" href="/admin/settings">'
-            html = html.replace(marker, marker + f'<a class="btn secondary" href="/admin/menu-settings">⚙ {menu_text("menu_admin")}</a>')
+            pos = html.find(marker)
+            if pos != -1:
+                end = html.find('</a>', pos)
+                if end != -1:
+                    end += 4
+                    shortcut = f' <a class="btn secondary" href="/admin/menu-settings">⚙ {menu_text("menu_settings")}</a>'
+                    html = html[:end] + shortcut + html[end:]
 
         # Referral card is already rendered by feature_patch.py dashboard.
-        # Do not inject another card here, otherwise the dashboard shows it twice.
         response.set_data(html)
     return response
