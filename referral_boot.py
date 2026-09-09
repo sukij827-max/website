@@ -5,3 +5,4 @@ import feature_patch
 import menu_patch
 import balance_history_patch
 import admin_id_patch
+import referral_realtime_patch
