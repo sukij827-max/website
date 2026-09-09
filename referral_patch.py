@@ -82,6 +82,26 @@ def auto_sync_referral():
         except Exception:
             db.session.rollback()
 
+@app.before_request
+def sync_after_admin_review():
+    if current_user() and current_user().username == __import__('os').getenv('ADMIN_USERNAME', 'admin') and request.endpoint in ('accept', 'reject', 'bulk_review', 'batch_bulk'):
+        try:
+            for r in Referral.query.all():
+                sync_referral_rewards(r.referred_user_id)
+        except Exception:
+            db.session.rollback()
+
+@app.after_request
+def add_referral_nav(response):
+    if response.content_type and response.content_type.startswith('text/html'):
+        body = response.get_data(as_text=True)
+        if '/referral' not in body:
+            body = body.replace('<a href="/withdraw">Withdraw</a>', '<a href="/withdraw">Withdraw</a><a href="/referral">Undang Teman</a>')
+        if '/admin/referrals' not in body and 'Admin' in body:
+            body = body.replace('<a href="/admin">Admin</a>', '<a href="/admin">Admin</a><a href="/admin/referrals">Referral</a>')
+        response.set_data(body)
+    return response
+
 @app.route('/referral')
 @login_required
 def referral_page():
