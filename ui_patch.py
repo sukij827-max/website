@@ -1,6 +1,6 @@
 from decimal import Decimal
 from flask import request, url_for
-from app import app, db, Withdrawal, admin_required, current_user, page
+from app import app, db, Withdrawal, Setting, admin_required, current_user, page
 
 def _remove_rule(rule_path, endpoint):
     for rule in list(app.url_map.iter_rules()):
@@ -10,6 +10,10 @@ def _remove_rule(rule_path, endpoint):
             try: app.url_map._rules_by_endpoint[endpoint].remove(rule)
             except (KeyError, ValueError): pass
     app.view_functions.pop(endpoint, None)
+
+def _menu_text(key, default):
+    s = db.session.get(Setting, key)
+    return s.value.strip() if s and s.value and s.value.strip() else default
 
 _remove_rule('/admin/withdrawals', 'admin_withdrawals')
 
@@ -60,9 +64,23 @@ def add_ui_navigation(response):
         u = current_user()
         if u and 'ui-bottom-nav' not in html:
             if u.username == __import__('os').getenv('ADMIN_USERNAME','admin'):
-                links = [('/dashboard','⌂','Dashboard'),('/submit','＋','Ajukan'),('/admin/withdrawals','↳','Withdraw'),('/admin/users','♙','User'),('/admin','▦','Admin'),('/logout','↪','Keluar')]
+                links = [
+                    ('/dashboard','⌂',_menu_text('menu_dashboard','Dashboard')),
+                    ('/submit','＋',_menu_text('menu_submit','Ajukan')),
+                    ('/admin/withdrawals','↳',_menu_text('menu_withdraw','Withdraw')),
+                    ('/admin/users','♙',_menu_text('menu_user','User')),
+                    ('/admin','▦',_menu_text('menu_admin','Admin')),
+                    ('/logout','↪',_menu_text('menu_logout','Keluar')),
+                ]
             else:
-                links = [('/dashboard','⌂','Dashboard'),('/submit','＋','Ajukan'),('/withdraw','↳','Withdraw'),('/profile','♙','User'),('/rules','☰','Aturan'),('/logout','↪','Keluar')]
+                links = [
+                    ('/dashboard','⌂',_menu_text('menu_dashboard','Dashboard')),
+                    ('/submit','＋',_menu_text('menu_submit','Ajukan')),
+                    ('/withdraw','↳',_menu_text('menu_withdraw','Withdraw')),
+                    ('/profile','♙',_menu_text('menu_user','User')),
+                    ('/rules','☰',_menu_text('menu_rules','Aturan')),
+                    ('/logout','↪',_menu_text('menu_logout','Keluar')),
+                ]
             nav=''.join(f'<a class="bottom-item {"active" if request.path==p else ""}" href="{p}"><span class="bottom-icon">{ic}</span><span>{label}</span></a>' for p,ic,label in links)
             extra='''<style>
             body{padding-bottom:82px}.navlinks{display:none!important}
