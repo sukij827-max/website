@@ -3,3 +3,4 @@ import referral_patch
 import ui_patch
 import feature_patch
 import menu_patch
+import balance_history_patch
