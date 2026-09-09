@@ -1,5 +1,5 @@
 from decimal import Decimal
-from flask import request, url_for, session
+from flask import request, url_for
 from app import app, db, Withdrawal, admin_required, current_user, page
 
 def _remove_rule(rule_path, endpoint):
@@ -51,10 +51,7 @@ def profile():
     <div class="card" style="margin-top:16px"><h3>Riwayat Transaksi</h3><div style="display:grid;gap:8px">{''.join(f'<div class="status-box"><b>Rp {Decimal(t.amount):,.0f}</b> · {t.kind}<div class="muted small">{t.created_at}</div><div class="small">{t.note}</div></div>' for t in tx) or '<div class="muted">Belum ada transaksi.</div>'}</div></div>'''
     return page(body,'Profil Saya')
 
-@app.route('/logout', endpoint='logout')
-def logout():
-    session.clear()
-    return __import__('flask').redirect(url_for('login'))
+# /logout is already registered by the main application. Do not register it again here.
 
 @app.after_request
 def add_ui_navigation(response):
