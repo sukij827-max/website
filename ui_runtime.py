@@ -1,12 +1,19 @@
 """Runtime UI layer for MailMarket dashboards.
-Loaded by gunicorn.conf.py before the app is served.
+The Railway start command loads this module directly so the UI extensions are always applied.
 """
 from decimal import Decimal
 from flask import Response
 import app as core
 
+# Load the public visual shell first.
 try:
     import visual_patch  # noqa: F401
+except Exception:
+    pass
+
+# Load Fresh/Bekas submission + admin inventory routes after the base app exists.
+try:
+    import used_email_feature  # noqa: F401
 except Exception:
     pass
 
@@ -27,12 +34,12 @@ def _dashboard_stats_html():
         core.EmailSubmission.status == "accepted",
     ).scalar() or 0
     rate = (accepted / total * 100) if total else 0
-    return f'''<div class="mm-dashboard-stats">
-      <div class="mm-dstat mm-dstat-users"><div class="mm-dicon">♙</div><div><span>Pengguna Aktif</span><strong>1</strong><small>Akun kamu</small></div></div>
+    return f'''<section class="mm-dashboard-stats" aria-label="Ringkasan akun">
+      <div class="mm-dstat mm-dstat-users"><div class="mm-dicon">♙</div><div><span>Pengguna Aktif</span><strong>1</strong><small>Akun kamu aktif</small></div></div>
       <div class="mm-dstat mm-dstat-email"><div class="mm-dicon">✉</div><div><span>Email Diterima</span><strong>{accepted:,}</strong><small>{total:,} email diajukan</small></div></div>
       <div class="mm-dstat mm-dstat-security"><div class="mm-dicon">✓</div><div><span>Tingkat Keamanan</span><strong>{rate:.0f}%</strong><small>Review manual</small></div></div>
       <div class="mm-dstat mm-dstat-money"><div class="mm-dicon">Rp</div><div><span>Dana Dibayarkan</span><strong>Rp {Decimal(paid):,.0f}</strong><small>{rejected:,} ditolak · {pending:,} pending</small></div></div>
-    </div>'''
+    </section>'''
 
 
 def _admin_stats_html():
@@ -43,12 +50,12 @@ def _admin_stats_html():
         core.db.func.coalesce(core.db.func.sum(core.EmailSubmission.payout), 0)
     ).filter(core.EmailSubmission.status == "accepted").scalar() or 0
     security = 100 if emails else 0
-    return f'''<div class="mm-dashboard-stats mm-admin-stats">
+    return f'''<section class="mm-dashboard-stats mm-admin-stats" aria-label="Statistik admin">
       <div class="mm-dstat mm-dstat-users"><div class="mm-dicon">♙</div><div><span>Pengguna Aktif</span><strong>{users:,}</strong><small>Pengguna tidak diblokir</small></div></div>
       <div class="mm-dstat mm-dstat-email"><div class="mm-dicon">✉</div><div><span>Email Diterima</span><strong>{accepted:,}</strong><small>Dari {emails:,} email diproses</small></div></div>
       <div class="mm-dstat mm-dstat-security"><div class="mm-dicon">✓</div><div><span>Tingkat Keamanan</span><strong>{security}%</strong><small>Review manual aktif</small></div></div>
       <div class="mm-dstat mm-dstat-money"><div class="mm-dicon">Rp</div><div><span>Dana Dibayarkan</span><strong>Rp {Decimal(paid):,.0f}</strong><small>Total payout diterima user</small></div></div>
-    </div>'''
+    </section>'''
 
 
 _extra_css = r'''
@@ -59,26 +66,33 @@ _extra_css = r'''
 .mm-dstat span{display:block;font-size:12px;color:#6c7890;font-weight:700;margin-bottom:4px}.mm-dstat strong{display:block;font-size:23px;line-height:1.15;color:#0b1830;font-weight:900}.mm-dstat small{display:block;font-size:11px;color:#8a95a7;margin-top:5px}
 .mm-dstat-email .mm-dicon{background:#e9f8f3;color:#14815e}.mm-dstat-security .mm-dicon{background:#fff5df;color:#aa7a13}.mm-dstat-money .mm-dicon{background:#f0eaff;color:#7650c8}
 .admin .mm-dstat{background:linear-gradient(145deg,#0e1d33,#0a172a);border-color:#243752}.admin .mm-dstat strong{color:#eef5ff}.admin .mm-dstat span{color:#a8b7cb}.admin .mm-dstat small{color:#7f91aa}.admin .mm-dicon{background:#183252;color:#65aaff}.admin .mm-dstat-email .mm-dicon{background:#12382f;color:#58d6ac}.admin .mm-dstat-security .mm-dicon{background:#3b321d;color:#f0c96b}.admin .mm-dstat-money .mm-dicon{background:#2c2144;color:#b99aff}
+/* Inline UI: explanatory copy becomes compact chips/cards instead of poem-like text blocks. */
+.mm-proof{display:flex!important;gap:9px!important;flex-wrap:wrap!important}.mm-proof span{display:inline-flex;align-items:center;padding:8px 11px;border:1px solid #ffffff20;background:#ffffff0b;border-radius:999px;font-size:12px;font-weight:750;color:#d9e7f8}.mm-inline-info{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.mm-inline-info>*{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border-radius:12px;background:#f3f7fc;border:1px solid #e2e9f2;color:#44546b;font-size:12px;font-weight:750}
 @media(max-width:900px){.mm-dashboard-stats{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.mm-dashboard-stats{grid-template-columns:1fr}.mm-dstat{min-height:108px}}
 '''
 
 if '</style>' in core.BASE and 'mm-dashboard-stats' not in core.BASE:
     core.BASE = core.BASE.replace('</style>', _extra_css + '</style>', 1)
+elif '</style>' in core.BASE and 'mm-inline-info' not in core.BASE:
+    core.BASE = core.BASE.replace('</style>', _extra_css + '</style>', 1)
 
 _original_dashboard = core.app.view_functions.get("dashboard")
 _original_admin = core.app.view_functions.get("admin_dashboard")
 
 
-def _wrap(original, stats_fn, marker):
+def _wrap(original, stats_fn, markers):
     def wrapped(*args, **kwargs):
         response = original(*args, **kwargs)
         if not hasattr(response, "get_data"):
             return response
         html = response.get_data(as_text=True)
-        stats = stats_fn()
-        if stats and marker in html and 'mm-dashboard-stats' not in html:
-            html = html.replace(marker, stats + marker, 1)
+        if 'mm-dashboard-stats' not in html:
+            stats = stats_fn()
+            for marker in markers:
+                if stats and marker in html:
+                    html = html.replace(marker, stats + marker, 1)
+                    break
         return Response(
             html,
             status=response.status_code,
@@ -93,13 +107,19 @@ if _original_dashboard:
     core.app.view_functions["dashboard"] = _wrap(
         _original_dashboard,
         _dashboard_stats_html,
-        '<div class="card" style="margin-top:16px"><h3>Riwayat Pengajuan',
+        [
+            '<div class="card" style="margin-top:16px"><h3>Riwayat Pengajuan',
+            '<h3>Riwayat Pengajuan',
+        ],
     )
 if _original_admin:
     core.app.view_functions["admin_dashboard"] = _wrap(
         _original_admin,
         _admin_stats_html,
-        '<div class="card" style="margin-top:16px"><div class="top"><h3>Semua Pengajuan',
+        [
+            '<div class="card" style="margin-top:16px"><div class="top"><h3>Semua Pengajuan',
+            '<h3>Semua Pengajuan',
+        ],
     )
 
 app = core.app
