@@ -1,7 +1,10 @@
-# Load the visual runtime layer automatically for Gunicorn/Railway.
-# Python's site module imports sitecustomize during normal startup.
+# Load optional UI and fresh/used email extensions automatically for Gunicorn/Railway.
 try:
     import ui_runtime  # noqa: F401
 except Exception:
-    # Never prevent the main application from starting if the optional UI layer fails.
+    pass
+
+try:
+    import used_email_feature  # noqa: F401
+except Exception:
     pass
