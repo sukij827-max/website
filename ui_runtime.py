@@ -70,12 +70,13 @@ _original_dashboard = core.app.view_functions.get("dashboard")
 _original_admin = core.app.view_functions.get("admin_dashboard")
 
 
-def _wrap(original, stats, marker):
+def _wrap(original, stats_fn, marker):
     def wrapped(*args, **kwargs):
         response = original(*args, **kwargs)
         if not hasattr(response, "get_data"):
             return response
         html = response.get_data(as_text=True)
+        stats = stats_fn()
         if stats and marker in html and 'mm-dashboard-stats' not in html:
             html = html.replace(marker, stats + marker, 1)
         return Response(
@@ -91,13 +92,13 @@ def _wrap(original, stats, marker):
 if _original_dashboard:
     core.app.view_functions["dashboard"] = _wrap(
         _original_dashboard,
-        _dashboard_stats_html(),
+        _dashboard_stats_html,
         '<div class="card" style="margin-top:16px"><h3>Riwayat Pengajuan',
     )
 if _original_admin:
     core.app.view_functions["admin_dashboard"] = _wrap(
         _original_admin,
-        _admin_stats_html(),
+        _admin_stats_html,
         '<div class="card" style="margin-top:16px"><div class="top"><h3>Semua Pengajuan',
     )
 
